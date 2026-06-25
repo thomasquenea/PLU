@@ -475,7 +475,7 @@ export default async function handler(req, res) {
   console.log('Params:', { zone, commune, address: address?.slice(0, 40), projet: projet?.slice(0, 60) });
 
   if (!zone || !analysisType || (!pluUrl && !pluBase64)) return res.status(400).json({ error: 'Paramètres manquants' });
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.Thomas;
   if (!apiKey) return res.status(500).json({ error: 'Clé API non configurée' });
 
   const communeInfo = commune ? `\nCommune : ${commune}${address ? ' — ' + address : ''}` : '';
