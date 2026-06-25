@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UrbanScan</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzJDNEE2RSIvPgogIDx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1mYW1pbHk9Ikdlb3JnaWEsc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UDwvdGV4dD4KPC9zdmc+">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#2C4A6E;--blue-h:#1e3550;--blue-l:#eaf0f7;
+  --bg:#f5f6f8;--s:#fff;--s2:#f8f9fa;
+  --ink:#0d1117;--ink2:#4a5568;--ink3:#9aa5b4;
+  --bdr:#e2e8f0;--r:16px;--rsm:11px;
+  --green-bg:#ecfdf5;--green-t:#065f46;
+  --red:#dc2626;--red-l:#fef2f2;--red-t:#991b1b;
+  --amber-bg:#fffbeb;--amber-t:#92400e;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:'Geist',sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+
+/* ── ANIMATIONS ── */
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+
+/* ── OVERLAY + DRAWER ── */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);z-index:40;opacity:0;pointer-events:none;transition:opacity .3s}
+#overlay.on{opacity:1;pointer-events:all}
+#drawer{position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--s);border-right:1px solid var(--bdr);z-index:50;transform:translateX(-100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;box-shadow:4px 0 32px rgba(0,0,0,.08)}
+#drawer.on{transform:translateX(0)}
+.d-brand{padding:26px 20px 18px;border-bottom:1px solid var(--bdr)}
+.d-logo img{width:110px;height:auto;display:block}
+.d-sub{font-size:11px;color:var(--ink3);margin-top:8px;letter-spacing:.04em}
+.d-section{padding:16px 12px 4px}
+.d-lbl{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);padding:0 8px;margin-bottom:6px}
+.d-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;transition:background .15s;margin-bottom:2px}
+.d-item:hover:not(.soon){background:var(--s2)}
+.d-item.active{background:var(--blue-l)}
+.d-item.active .d-l2{color:var(--blue)}
+.d-item.soon{opacity:.35;cursor:default}
+.d-ic{width:28px;height:28px;background:var(--s2);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--ink3)}
+.d-l2{font-size:13px;color:var(--ink2)}
+.d-badge{margin-left:auto;background:var(--s2);color:var(--ink3);font-size:10px;padding:2px 7px;border-radius:99px}
+.hist-item{padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:3px;transition:background .15s,transform .15s}
+.hist-item:hover{background:var(--s2);transform:translateX(3px)}
+.hist-date{font-size:10px;color:var(--ink3)}
+.hist-addr{font-size:12px;color:var(--ink2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-zone{font-size:11px;color:var(--ink3);margin-top:1px}
+
+/* ── TOPBAR ── */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:30;background:rgba(255,255,255,.88);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(226,232,240,.8);height:56px;display:flex;align-items:center;padding:0 20px;gap:12px}
+.menu-btn{width:36px;height:36px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:9px;transition:background .15s;flex-shrink:0}
+.menu-btn:hover{background:var(--bdr)}
+.menu-btn span{display:block;width:17px;height:1.5px;background:var(--ink);border-radius:2px}
+.back-btn{width:36px;height:36px;background:none;border:1.5px solid var(--bdr);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:99px;transition:all .2s;flex-shrink:0;opacity:0;pointer-events:none;transform:scale(.8);display:none}
+.back-btn.on{display:flex}
+.topbar-title{font-size:14.5px;font-weight:600;color:var(--ink);flex:1}
+.step-dots{display:flex;gap:6px;align-items:center}
+.dot-s{width:6px;height:6px;border-radius:99px;background:var(--bdr);transition:all .35s cubic-bezier(.4,0,.2,1)}
+.dot-s.on{width:20px;background:var(--blue)}
+
+/* ── STEPS CONTAINER ── */
+.steps-wrap{position:fixed;top:56px;left:0;right:0;bottom:0;perspective:1200px;perspective-origin:50% 40%}
+.step{position:absolute;inset:0;overflow-y:auto;transition:transform .5s cubic-bezier(.4,0,.2,1),opacity .5s cubic-bezier(.4,0,.2,1);transform-style:preserve-3d;will-change:transform,opacity}
+.step.active{transform:translateZ(0) scale(1);opacity:1;pointer-events:all;z-index:2}
+.step.behind{transform:translateZ(-100px) scale(0.92);opacity:0;pointer-events:none;z-index:1}
+.step.front{transform:translateZ(80px) scale(1.04);opacity:0;pointer-events:none;z-index:3}
+
+/* ── STEP 1 — Adresse ── */
+.s1-inner{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px 48px;max-width:660px;margin:0 auto}
+.s1-eyebrow{font-size:11.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:16px;animation:fadeUp .5s .1s both}
+.s1-title{font-size:32px;font-weight:700;color:var(--ink);text-align:center;line-height:1.2;margin-bottom:10px;letter-spacing:-.03em;animation:fadeUp .5s .15s both}
+.s1-sub{font-size:15px;color:var(--ink3);text-align:center;margin-bottom:40px;line-height:1.6;animation:fadeUp .5s .2s both}
+.s1-card{background:var(--s);border:1px solid var(--bdr);border-radius:20px;padding:28px;width:100%;max-width:600px;box-shadow:0 4px 32px rgba(0,0,0,.06);animation:fadeUp .5s .25s both}
+.s1-field{margin-bottom:18px}
+.s1-field label{display:block;font-size:11.5px;font-weight:500;color:var(--ink2);margin-bottom:7px;letter-spacing:.02em}
+.addr-row{display:flex;gap:8px}
+.inp{flex:1;background:var(--s2);border:1.5px solid var(--bdr);border-radius:var(--rsm);padding:13px 16px;font-family:'Geist',sans-serif;font-size:14px;color:var(--ink);outline:none;transition:all .2s}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(44,74,110,.08);background:var(--s)}
+.inp::placeholder{color:var(--ink3)}
+.inp-zone{font-size:16px;font-weight:600;letter-spacing:.04em}
+.btn-find{flex-shrink:0;background:var(--blue);color:#fff;border:none;border-radius:var(--rsm);padding:13px 20px;font-family:'Geist',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;box-shadow:0 2px 12px rgba(44,74,110,.3);transition:all .18s}
+.btn-find:hover{background:var(--blue-h);box-shadow:0 4px 20px rgba(44,74,110,.4);transform:translateY(-1px)}
+.btn-find:active{transform:scale(.97)}
+.btn-find:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.geo-box{display:none;border-radius:var(--rsm);padding:13px 16px;font-size:13px;line-height:1.7;margin-top:4px}
+.geo-ok{background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green-t);display:block;animation:popIn .3s ease}
+.geo-warn{background:var(--amber-bg);border:1px solid #fcd34d;color:var(--amber-t);display:block}
+.geo-err{background:var(--red-l);border:1px solid #fecaca;color:var(--red-t);display:block}
+.geo-load{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;display:block}
+.plu-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.plu-name{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.plu-link{font-size:11.5px;color:var(--blue);text-decoration:none;display:flex;align-items:center;gap:3px}
+.plu-link:hover{text-decoration:underline}
+.warn-age{background:#fdf8f0;border:1px solid #e8d5b0;border-radius:var(--rsm);padding:9px 13px;font-size:12px;color:#8a6a2a;margin-top:8px;display:none}
+.warn-ppri{background:#fef2f2;border:1px solid #fecaca;border-radius:var(--rsm);padding:9px 13px;font-size:12px;color:#991b1b;margin-top:8px;display:none}
+.s1-divider{display:flex;align-items:center;gap:12px;margin:18px 0}
+.s1-divider div{flex:1;height:1px;background:var(--bdr)}
+.s1-divider span{font-size:11.5px;color:var(--ink3)}
+.drop{position:relative;border:1.5px dashed var(--bdr);border-radius:var(--rsm);padding:20px;text-align:center;cursor:pointer;background:var(--s2);transition:all .2s}
+.drop:hover,.drop.over{border-color:var(--blue);background:var(--blue-l)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-lbl{font-size:13px;color:var(--ink2);margin-top:4px}
+.drop-sub{font-size:11.5px;color:var(--ink3);margin-top:2px}
+.file-tag{display:none;align-items:center;gap:6px;background:var(--green-bg);border-radius:6px;padding:4px 11px;font-size:12px;font-weight:500;color:var(--green-t);width:fit-content;margin:6px auto 0}
+.btn-continue{width:100%;background:var(--blue);color:#fff;border:none;border-radius:var(--rsm);padding:15px;font-family:'Geist',sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(44,74,110,.3);transition:all .18s;margin-top:8px}
+.btn-continue:hover{background:var(--blue-h);box-shadow:0 4px 20px rgba(44,74,110,.4);transform:translateY(-1px)}
+.btn-continue:active{transform:scale(.98)}
+.btn-continue:disabled{background:var(--bdr);color:var(--ink3);cursor:not-allowed;box-shadow:none;transform:none}
+.btn-continue-wrap{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1),opacity .4s;opacity:0}
+.btn-continue-wrap.on{max-height:80px;opacity:1}
+.manual-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:none;border:none;font-family:'Geist',sans-serif;font-size:12.5px;color:var(--ink3);cursor:pointer;padding:6px 0;transition:color .15s;margin-bottom:4px}
+.manual-toggle:hover{color:var(--blue)}
+.manual-toggle svg{transition:transform .3s}
+.manual-toggle.on svg{transform:rotate(180deg)}
+.manual-toggle.on{color:var(--blue)}
+.manual-section{max-height:0;overflow:hidden;opacity:0;transition:max-height .45s cubic-bezier(.4,0,.2,1),opacity .35s ease,padding .45s;padding-top:0;border-top:1px solid transparent;margin-top:0}
+.manual-section.on{max-height:500px;opacity:1;padding-top:16px;border-top-color:var(--bdr);margin-top:4px}
+
+/* ── STEP 2 — Analyse ── */
+.s2-inner{max-width:1100px;margin:0 auto;padding:24px 40px 80px}
+.s2-wrap{position:relative;max-width:1100px;margin:0 auto;padding:24px 40px 80px}
+.float-back{position:fixed;top:50%;left:calc(50% - 550px - 56px);transform:translateY(-50%);width:40px;height:40px;background:var(--s);border:1.5px solid var(--bdr);border-radius:99px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 16px rgba(0,0,0,.08);z-index:20}
+.float-back:hover{border-color:var(--blue);background:var(--blue-l);transform:translateY(-50%) translateX(-3px)}
+.s2-hero{background:linear-gradient(135deg,var(--blue) 0%,#3d6494 100%);border-radius:20px;padding:24px 28px;margin-bottom:20px;animation:fadeUp .4s ease}
+.s2-hero-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.7);margin-bottom:6px}
+.s2-hero-addr{font-size:14px;color:rgba(255,255,255,.95);line-height:1.5}
+.s2-hero-zone{font-size:26px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-top:4px}
+.s2-hero-plu{font-size:12.5px;color:#fff;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.s2-hero-plu a{color:#fff;text-decoration:none;font-weight:600;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:5px}
+.s2-hero-plu a:hover{color:#fff}
+.s2-section-title{font-size:11.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin:0 0 12px;padding:0 4px}
+.acard{background:var(--s);border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-bottom:12px;transition:border-color .2s,box-shadow .2s;animation:fadeUp .4s ease both}
+.acard:nth-child(1){animation-delay:.05s}
+.acard:nth-child(2){animation-delay:.1s}
+.acard:nth-child(3){animation-delay:.15s}
+.acard.on{border-color:var(--blue);box-shadow:0 4px 24px rgba(44,74,110,.1)}
+.acard-hd{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;transition:background .15s;user-select:none}
+.acard-hd:hover{background:var(--s2)}
+.acard.on .acard-hd{background:var(--blue-l)}
+.acard-ic{width:36px;height:36px;border:1.5px solid var(--blue-l);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--blue);background:var(--blue-l);transition:all .2s;font-size:20px}
+.acard.on .acard-ic{border-color:var(--blue);color:var(--blue);background:#fff}
+.acard-info{flex:1}
+.acard-title{font-size:14px;font-weight:600;color:var(--ink)}
+.acard-sub{font-size:12px;color:var(--ink3);margin-top:2px}
+.acard-arrow{color:var(--ink3);transition:transform .3s cubic-bezier(.4,0,.2,1);font-size:20px;line-height:1}
+.acard.on .acard-arrow{transform:rotate(90deg);color:var(--blue)}
+.acard-bd{padding:0 20px 18px;border-top:1.5px solid var(--blue-l);animation:fadeUp .25s ease}
+.btn-go{width:100%;background:var(--blue);color:#fff;border:none;border-radius:var(--rsm);padding:13px;font-family:'Geist',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;box-shadow:0 2px 10px rgba(44,74,110,.25);margin-top:4px}
+.btn-go:hover:not(:disabled){background:var(--blue-h);box-shadow:0 4px 20px rgba(44,74,110,.4);transform:translateY(-1px)}
+.btn-go:active:not(:disabled){transform:scale(.98)}
+.btn-go:disabled{background:#e2e8f0;color:var(--ink3);cursor:not-allowed;box-shadow:none}
+.err{display:none;background:var(--red-l);border:1px solid #fecaca;border-radius:var(--rsm);padding:11px 14px;font-size:13px;color:var(--red-t);margin-top:10px}
+.err.on{display:block}
+.spin{display:none;padding:16px 0 4px}
+.spin.on{display:block}
+.progress-bar{width:100%;height:5px;background:var(--bdr);border-radius:99px;overflow:hidden;margin:10px 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--blue) 0%,#4a7eb5 50%,var(--blue) 100%);background-size:200%;border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1);animation:shimmer 2s linear infinite}
+.spin p{font-size:13px;color:var(--ink2);text-align:center}
+.spin small{font-size:11.5px;color:var(--ink3);display:block;text-align:center;margin-top:3px}
+.btn-cancel{width:100%;background:var(--red);color:#fff;border:none;border-radius:var(--rsm);padding:12px;font-family:'Geist',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 2px 10px rgba(220,38,38,.25);margin-top:8px}
+.btn-cancel:hover{background:#b91c1c;box-shadow:0 4px 16px rgba(220,38,38,.35)}
+.btn-cancel:active{transform:scale(.98)}
+.res{display:none;background:var(--s);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-top:14px}
+.res.on{display:block;animation:popIn .35s cubic-bezier(.4,0,.2,1)}
+.res-top{background:linear-gradient(135deg,var(--blue) 0%,#3d6494 100%);padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.res-top h3{font-size:13.5px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.ztag{background:rgba(255,255,255,.15);color:#fff;font-size:11px;font-weight:500;padding:3px 11px;border-radius:99px}
+.res-body{padding:24px 26px}
+.res-body h2{font-size:14.5px;font-weight:600;color:var(--ink);margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+.res-body h2:first-child{margin-top:0}
+.res-body h2::before{content:"";display:inline-block;width:3px;height:15px;background:var(--blue);border-radius:2px;flex-shrink:0}
+.res-body h3{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin:18px 0 8px}
+.res-body p{font-size:13.5px;line-height:1.9;color:var(--ink2);margin-bottom:10px}
+.res-body ul{padding-left:18px;margin-bottom:10px}
+.res-body li{font-size:13.5px;line-height:1.85;color:var(--ink2);margin-bottom:6px}
+.res-body blockquote{background:var(--s2);border-left:3px solid var(--blue);padding:11px 16px;margin:14px 0;font-size:12.5px;line-height:1.75;color:#334155;border-radius:0 6px 6px 0}
+.res-body strong{font-weight:600;color:var(--ink)}
+.res-body hr{border:none;border-top:1px solid var(--bdr);margin:20px 0}
+.res-body table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+.res-body th{background:var(--s2);padding:7px 10px;text-align:left;font-weight:600;border:1px solid var(--bdr)}
+.res-body td{padding:7px 10px;border:1px solid var(--bdr);line-height:1.5}
+.res-body tr:nth-child(even) td{background:var(--s2)}
+.v-ok{display:inline-block;background:var(--green-bg);color:var(--green-t);border-radius:6px;padding:2px 9px;font-weight:500;font-size:13px}
+.v-warn{display:inline-block;background:var(--amber-bg);color:var(--amber-t);border-radius:6px;padding:2px 9px;font-weight:500;font-size:13px}
+.v-nok{display:inline-block;background:var(--red-l);color:var(--red-t);border-radius:6px;padding:2px 9px;font-weight:500;font-size:13px}
+.v-unk{display:inline-block;background:var(--bg);color:var(--ink3);border-radius:6px;padding:2px 9px;font-weight:500;font-size:13px}
+.res-foot{padding:11px 18px;border-top:1px solid var(--bdr);display:flex;gap:8px;flex-wrap:wrap;background:var(--s2)}
+.btn-dl{display:flex;align-items:center;gap:5px;padding:7px 13px;background:var(--s);border:1px solid var(--bdr);border-radius:8px;font-size:12.5px;font-weight:500;color:var(--ink2);cursor:pointer;transition:all .18s}
+.btn-dl:hover{background:var(--blue-l);color:var(--blue);border-color:var(--blue);transform:translateY(-1px)}
+.bsm{border:1.5px solid var(--bdr);background:var(--s);border-radius:6px;padding:6px 12px;font-family:'Geist',sans-serif;font-size:12px;cursor:pointer;color:var(--ink2);display:flex;align-items:center;gap:4px;transition:background .15s}
+.bsm:hover{background:var(--bg)}
+.bsm.blue{border-color:var(--blue);color:var(--blue)}
+.bsm.blue:hover{background:var(--blue-l)}
+
+@media print{
+  .topbar,#drawer,#overlay{display:none!important}
+  html,body{height:auto;overflow:auto}
+  .steps-wrap{position:static}
+  .step.active{position:static}
+}
+/* ── ACCORDÉON RÉSULTATS ── */
+.acc-intro{margin-bottom:12px}
+.acc-item{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden}
+.acc-item.open{border-color:#2C4A6E}
+.acc-hd{width:100%;display:flex;align-items:center;gap:10px;padding:13px 16px;background:#f8fafc;border:none;cursor:pointer;text-align:left;font:inherit;font-size:14px;font-weight:600;color:#1a2a3a;transition:background .15s}
+.acc-item.open .acc-hd{background:#2C4A6E;color:#fff}
+.acc-hd:hover{background:#e8eef5}
+.acc-item.open .acc-hd:hover{background:#253f5e}
+.acc-title{flex:1}
+.acc-arrow{font-size:20px;font-weight:300;line-height:1;transition:transform .2s;opacity:.7}
+.acc-item.open .acc-arrow{transform:rotate(90deg)}
+.acc-bd{padding:16px 18px}
+.acc-bd h3{font-size:13px;font-weight:700;color:#2C4A6E;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.acc-bd p{margin:0 0 8px;font-size:14px}
+.acc-bd blockquote{background:#f5f7fa;border-left:3px solid #2C4A6E;padding:8px 14px;margin:8px 0;font-size:13px;color:#444;border-radius:0 6px 6px 0}
+.acc-bd table{margin:10px 0}
+
+/* ── STRUCTURED ANALYSIS CARDS ── */
+.sa-section{background:var(--s);border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-bottom:10px;transition:border-color .2s}
+.sa-section-hd{display:flex;align-items:flex-start;gap:12px;padding:14px 18px 10px}
+.sa-badge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;font-size:15px;flex-shrink:0;margin-top:1px}
+.sa-badge.ok{background:var(--green-bg)}.sa-badge.warn{background:var(--amber-bg)}.sa-badge.nok{background:var(--red-l)}.sa-badge.map{background:#dbeafe}.sa-badge.unk{background:var(--s2)}
+.sa-info{flex:1;min-width:0}
+.sa-title{font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sa-title-label{font-size:11px;font-weight:500;border-radius:5px;padding:1px 7px}
+.sa-title-label.ok{background:var(--green-bg);color:var(--green-t)}.sa-title-label.warn{background:var(--amber-bg);color:var(--amber-t)}.sa-title-label.nok{background:var(--red-l);color:var(--red-t)}.sa-title-label.map{background:#dbeafe;color:#1e40af}.sa-title-label.unk{background:var(--s2);color:var(--ink3)}
+.sa-resume{font-size:13px;color:var(--ink2);line-height:1.65}
+.sa-rule-visible{font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:5px;padding:5px 10px;background:var(--s2);border-radius:6px;border-left:3px solid var(--bdr)}
+.sa-doc-block{margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:8px;border-left:3px solid #3b82f6;font-size:12px}
+.sa-doc-block .sa-doc-title{font-weight:600;color:#1e40af;margin-bottom:2px}
+.sa-doc-block .sa-doc-raison{color:#374151;margin-bottom:4px}
+.sa-doc-block a{color:#2563eb;text-decoration:underline}
+.sa-doc-fallback{color:#6b7280;font-style:italic}
+.sa-action{margin-top:6px;font-size:12px;color:#92400e;background:#fffbeb;border-radius:6px;padding:5px 10px;border-left:3px solid #f59e0b}
+.sa-source{font-size:11px;color:var(--ink3);margin-top:5px}
+.sa-source strong{color:var(--blue)}
+.sa-toggles{display:flex;gap:6px;flex-wrap:wrap;padding:0 18px 12px}
+.sa-toggle-btn{display:flex;align-items:center;gap:5px;background:none;border:1px solid var(--bdr);border-radius:7px;padding:5px 11px;font-family:'Geist',sans-serif;font-size:12px;color:var(--ink2);cursor:pointer;transition:all .15s}
+.sa-toggle-btn:hover{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+.sa-toggle-btn.active{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+.sa-toggle-btn svg{width:11px;height:11px;transition:transform .2s;flex-shrink:0}
+.sa-toggle-btn.active svg{transform:rotate(180deg)}
+.sa-panel{border-top:1px solid var(--bdr);padding:14px 18px;animation:fadeUp .2s ease}
+.sa-panel h4{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin:12px 0 6px}
+.sa-panel h4:first-child{margin-top:0}
+.sa-panel p{font-size:13px;line-height:1.75;color:var(--ink2);margin-bottom:8px}
+.sa-panel p:last-child{margin-bottom:0}
+.sa-panel blockquote{background:var(--s2);border-left:3px solid var(--blue);padding:9px 14px;margin:8px 0;font-size:12.5px;line-height:1.7;color:#334155;border-radius:0 6px 6px 0}
+.sa-panel ul{padding-left:16px;margin:4px 0}
+.sa-panel li{font-size:12.5px;line-height:1.7;color:var(--ink2);margin-bottom:4px}
+.sa-rule-tag{display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 10px;font-size:12px;font-weight:500;margin-bottom:8px}
+/* ── CONCLUSION OPÉRATIONNELLE ── */
+.sa-conclusion{background:var(--s);border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-top:16px}
+.sa-conclusion-hd{display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(135deg,#1a2e4a 0%,#2C4A6E 100%)}
+.sa-conclusion-hd h3{font-size:14px;font-weight:600;color:#fff;flex:1}
+.risk-badge{font-size:11.5px;font-weight:600;padding:3px 12px;border-radius:99px;letter-spacing:.03em}
+.risk-badge.risk-low{background:#dcfce7;color:#166534}
+.risk-badge.risk-mid{background:#fef9c3;color:#854d0e}
+.risk-badge.risk-high{background:#fee2e2;color:#991b1b}
+.sa-conclusion-body{padding:14px 18px}
+.sa-conc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:640px){.sa-conc-grid{grid-template-columns:1fr}}
+.sa-conc-box{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
+.sa-conc-box h4{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:7px}
+.sa-conc-box.red{border-color:#fecaca;background:var(--red-l)}.sa-conc-box.red h4{color:var(--red-t)}
+.sa-conc-box.amber{border-color:#fde68a;background:var(--amber-bg)}.sa-conc-box.amber h4{color:var(--amber-t)}
+.sa-conc-box.green{border-color:#a7f3d0;background:var(--green-bg)}.sa-conc-box.green h4{color:var(--green-t)}
+.sa-conc-box li{font-size:12px;line-height:1.65;color:var(--ink2);margin-bottom:4px}
+.sa-synthese{font-size:13.5px;line-height:1.85;color:var(--ink2);border-top:1px solid var(--bdr);padding-top:12px;margin-top:4px}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+</head>
+<body>
+
+<!-- DRAWER -->
+<div id="overlay" onclick="closeMenu()"></div>
+<aside id="drawer">
+  <div class="d-brand">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;background:#2C4A6E;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--ink);letter-spacing:-.01em">UrbanScan</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:1px">Île-de-France</div>
+      </div>
+    </div>
+  </div>
+  <div class="d-section">
+    <div class="d-lbl">Navigation</div>
+    <div class="d-item active">
+      <div class="d-ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18M3 15h18M9 3v18"/></svg></div>
+      <span class="d-l2">Analyses PLU</span>
+    </div>
+    <div class="d-item soon">
+      <div class="d-ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M5 9l7-7 7 7"/></svg></div>
+      <span class="d-l2">Gabarit & reculs</span>
+      <span class="d-badge">Bientôt</span>
+    </div>
+    <div class="d-item soon">
+      <div class="d-ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg></div>
+      <span class="d-l2">Stationnement</span>
+      <span class="d-badge">Bientôt</span>
+    </div>
+  </div>
+  <div class="d-section">
+    <div class="d-lbl">Historique</div>
+    <div id="historyList" style="padding:0 6px"></div>
+    <div id="historyEmpty" style="padding:8px 10px;font-size:11.5px;color:var(--ink3)">Aucune recherche</div>
+  </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <button class="menu-btn" onclick="toggleMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <button class="back-btn" id="backBtn" onclick="goBack()" aria-label="Retour">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+  </button>
+  <span class="topbar-title">UrbanScan</span>
+  <div class="step-dots">
+    <div class="dot-s on" id="dot0"></div>
+    <div class="dot-s" id="dot1"></div>
+  </div>
+</header>
+
+<!-- STEPS -->
+<div class="steps-wrap">
+
+  <!-- STEP 1 : Adresse -->
+  <div class="step active" id="step0">
+    <div class="s1-inner">
+      <div class="s1-eyebrow">UrbanScan · Île-de-France</div>
+      <h1 class="s1-title">Analysez votre PLU en quelques secondes</h1>
+      <p class="s1-sub">Entrez l'adresse du bien — la zone et le règlement sont détectés automatiquement.</p>
+
+      <div class="s1-card">
+        <div class="s1-field">
+          <label>Adresse du bien</label>
+          <div class="addr-row">
+            <input class="inp" id="address" type="text" placeholder="Ex: 48 rue Voltaire, 92150 Suresnes" onkeydown="if(event.key==='Enter')findZone()">
+            <button class="btn-find" id="btnFind" onclick="findZone()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Trouver
+            </button>
+          </div>
+          <div class="geo-box" id="geoBox"></div>
+          <div id="pluOk" style="display:none;margin-top:8px"></div>
+          <div class="warn-age" id="pluAgeWarning">⚠️ Ce règlement date de plus de 2 ans — vérifiez s'il a été mis à jour.</div>
+          <div class="warn-ppri" id="ppriWarning"></div>
+          <div class="warn-ppri" id="smsWarning" style="background:#f0fdf4;border-color:#86efac;color:#166534"></div>
+          <div class="warn-ppri" id="smsMissingWarning" style="background:#f8fafc;border-color:#cbd5e1;color:#475569"></div>
+          <div class="warn-ppri" id="procWarning" style="background:#fffbeb;border-color:#fde68a;color:#92400e"></div>
+        </div>
+
+        <button class="manual-toggle" id="manualToggle" onclick="toggleManual()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          Renseigner manuellement
+        </button>
+
+        <div class="manual-section" id="manualSection">
+          <div class="s1-field">
+            <label>Zone PLU <span style="color:var(--ink3);font-weight:400">(si non détectée)</span></label>
+            <input class="inp inp-zone" id="zone" type="text" placeholder="Ex: UDa" oninput="checkAll()">
+          </div>
+          <div id="dropM" class="drop">
+            <input type="file" id="fileM" accept=".pdf">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto;display:block;color:var(--ink3)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div class="drop-lbl">Glissez votre PDF ici</div>
+            <div class="drop-sub">ou cliquez pour sélectionner</div>
+            <div class="file-tag" id="tagM"></div>
+          </div>
+        </div>
+
+        <div class="btn-continue-wrap" id="continueWrap">
+        <button class="btn-continue" id="btnContinue" onclick="goNext()">
+          Continuer
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIT PLU VOLUMINEUX -->
+    <div style="max-width:520px;margin:24px auto 0;padding:0 20px">
+      <button onclick="toggleAudit()" style="background:none;border:none;color:var(--ink3);font-size:11.5px;cursor:pointer;padding:6px 0;text-decoration:underline;text-underline-offset:2px">
+        ⚙ Audit capacité PLU — tester les gros PLUi Grand Paris
+      </button>
+      <div id="auditSection" style="display:none;margin-top:10px;background:var(--s);border:1px solid var(--bdr);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Audit capacité PLU volumineux</div>
+        <div style="font-size:12px;color:var(--ink2);margin-bottom:12px">Teste si les règlements des PLUi de la petite couronne parisienne sont analysables par l'outil (aucune analyse Claude — contrôle de taille uniquement).</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button onclick="runAudit()" id="auditBtn" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:500;cursor:pointer">Lancer l'audit</button>
+          <a id="auditCsvBtn" href="#" download="audit-plu.csv" style="display:none;font-size:12px;color:var(--blue)">↓ Télécharger CSV</a>
+        </div>
+        <div id="auditStatus" style="font-size:12px;color:var(--ink2);margin-top:8px"></div>
+        <div id="auditTable" style="margin-top:12px;overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 : Analyse -->
+  <div class="step front" id="step1">
+    <button class="float-back" id="floatBack" onclick="goBack()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg></button>
+    <div class="s2-wrap"><div class="s2-inner" style="padding:0">
+
+      <div class="s2-hero" id="heroCard">
+        <div class="s2-hero-label">Parcelle analysée</div>
+        <div class="s2-hero-addr" id="heroAddr">—</div>
+        <div class="s2-hero-zone" id="heroZone">—</div>
+        <div class="s2-hero-plu" id="heroPlu"></div>
+      </div>
+
+      <p class="s2-section-title">Votre projet (optionnel)</p>
+      <textarea id="projetDesc" rows="3" placeholder="Décrivez le projet envisagé pour une étude ciblée — ex. : surélévation de 2 niveaux d'un immeuble de bureaux R+5 conservé, avec changement de destination vers logements (~4 500 m² SDP existants)..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d6dde6;border-radius:10px;font:inherit;font-size:14px;resize:vertical;margin-bottom:14px"></textarea>
+
+      <p class="s2-section-title">Choisissez une analyse</p>
+
+      <div class="acard" id="av-destination">
+        <div class="acard-hd" onclick="toggleAV('destination')">
+          <div class="acard-ic"><i class="ti ti-transform" aria-hidden="true"></i></div>
+          <div class="acard-info">
+            <div class="acard-title">Changement de destination</div>
+            <div class="acard-sub">Bureaux → logements · Bâtiment existant</div>
+          </div>
+          <div class="acard-arrow">›</div>
+        </div>
+        <div class="acard-bd" id="bd-destination" style="display:none">
+          <button class="btn-go" id="btn-destination" onclick="runAnalysis('destination')" disabled>Lancer l'analyse</button>
+          <div class="err" id="err-destination"></div>
+          <div class="spin" id="sp-destination">
+            <div class="progress-bar"><div class="progress-fill" id="pf-destination" style="width:0%"></div></div>
+            <p>Analyse en cours… <span id="pct-destination">0%</span></p>
+            <small id="step-destination">Téléchargement du règlement…</small>
+          </div>
+          <div class="res" id="res-destination">
+            <div class="res-top"><h3>Changement de destination</h3><span class="ztag" id="zt-destination"></span></div>
+            <div class="res-body" id="rb-destination"></div>
+            <div class="res-foot">
+              <button class="btn-dl" onclick="downloadNote('destination')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Note de synthèse</button>
+              <button class="bsm blue" onclick="copyR('destination')">📋 Copier</button>
+              <button class="bsm" onclick="resetR('destination')">↩ Réinitialiser</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acard" id="av-surelevation">
+        <div class="acard-hd" onclick="toggleAV('surelevation')">
+          <div class="acard-ic"><i class="ti ti-stack" aria-hidden="true"></i></div>
+          <div class="acard-info">
+            <div class="acard-title">Surélévation</div>
+            <div class="acard-sub">Ajout d'étages · Hauteur max · Gabarit</div>
+          </div>
+          <div class="acard-arrow">›</div>
+        </div>
+        <div class="acard-bd" id="bd-surelevation" style="display:none">
+          <button class="btn-go" id="btn-surelevation" onclick="runAnalysis('surelevation')" disabled>Lancer l'analyse</button>
+          <div class="err" id="err-surelevation"></div>
+          <div class="spin" id="sp-surelevation">
+            <div class="progress-bar"><div class="progress-fill" id="pf-surelevation" style="width:0%"></div></div>
+            <p>Analyse en cours… <span id="pct-surelevation">0%</span></p>
+            <small id="step-surelevation">Téléchargement du règlement…</small>
+          </div>
+          <div class="res" id="res-surelevation">
+            <div class="res-top"><h3>Surélévation</h3><span class="ztag" id="zt-surelevation"></span></div>
+            <div class="res-body" id="rb-surelevation"></div>
+            <div class="res-foot">
+              <button class="btn-dl" onclick="downloadNote('surelevation')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Note de synthèse</button>
+              <button class="bsm blue" onclick="copyR('surelevation')">📋 Copier</button>
+              <button class="bsm" onclick="resetR('surelevation')">↩ Réinitialiser</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acard" id="av-extension">
+        <div class="acard-hd" onclick="toggleAV('extension')">
+          <div class="acard-ic"><i class="ti ti-arrows-maximize" aria-hidden="true"></i></div>
+          <div class="acard-info">
+            <div class="acard-title">Extension</div>
+            <div class="acard-sub">Agrandissement · Emprise au sol · Reculs</div>
+          </div>
+          <div class="acard-arrow">›</div>
+        </div>
+        <div class="acard-bd" id="bd-extension" style="display:none">
+          <button class="btn-go" id="btn-extension" onclick="runAnalysis('extension')" disabled>Lancer l'analyse</button>
+          <div class="err" id="err-extension"></div>
+          <div class="spin" id="sp-extension">
+            <div class="progress-bar"><div class="progress-fill" id="pf-extension" style="width:0%"></div></div>
+            <p>Analyse en cours… <span id="pct-extension">0%</span></p>
+            <small id="step-extension">Téléchargement du règlement…</small>
+          </div>
+          <div class="res" id="res-extension">
+            <div class="res-top"><h3>Extension</h3><span class="ztag" id="zt-extension"></span></div>
+            <div class="res-body" id="rb-extension"></div>
+            <div class="res-foot">
+              <button class="btn-dl" onclick="downloadNote('extension')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Note de synthèse</button>
+              <button class="bsm blue" onclick="copyR('extension')">📋 Copier</button>
+              <button class="bsm" onclick="resetR('extension')">↩ Réinitialiser</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// STATE
+let pluUrl = null, pluBase64 = null, zonageUrl = null, planUrls = [], currentAddress = '', currentCity = '', smsData = null;
+const results = {};
+let currentStep = 0;
+
+function togglePlans() {
+  const el = document.getElementById('plansList');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleManual() {
+  const btn = document.getElementById('manualToggle');
+  const sec = document.getElementById('manualSection');
+  btn.classList.toggle('on');
+  sec.classList.toggle('on');
+}
+
+// ── NAVIGATION ──
+function goNext() {
+  const zone = document.getElementById('zone').value.trim();
+  if (!zone) return;
+
+  document.getElementById('heroAddr').textContent = currentAddress || document.getElementById('address').value;
+  document.getElementById('heroZone').textContent = 'Zone ' + zone;
+
+  // Build hero PLU with white styling
+  if (pluUrl) {
+    const pluName = document.getElementById('pluOk')?.querySelector('strong')?.textContent || 'Règlement PLU';
+    document.getElementById('heroPlu').innerHTML =
+      '<span style="color:#fff;font-size:12.5px">📄 ' + pluName + '</span>' +
+      '<a href="' + pluUrl + '" target="_blank" style="color:#fff;font-size:12px;font-weight:600;border:1.5px solid rgba(255,255,255,.6);padding:2px 10px;border-radius:6px;text-decoration:none">↗ Télécharger</a>';
+  } else {
+    document.getElementById('heroPlu').innerHTML = '';
+  }
+
+  navigate(0, 1);
+}
+
+function goBack() {
+  navigate(1, 0);
+}
+
+function navigate(from, to) {
+  const fromEl = document.getElementById('step' + from);
+  const toEl = document.getElementById('step' + to);
+  const forward = to > from;
+
+  // Set initial state for incoming step
+  toEl.className = 'step ' + (forward ? 'front' : 'behind');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      fromEl.className = 'step ' + (forward ? 'behind' : 'front');
+      toEl.className = 'step active';
+    });
+  });
+
+  // Clear transform after transition for crisp text rendering
+  setTimeout(() => {
+    document.getElementById('step' + to).style.transform = '';
+  }, 600);
+
+  currentStep = to;
+
+  // Update back button
+  const backBtn = document.getElementById('backBtn');
+  if (to > 0) { backBtn.classList.add('on'); } else { backBtn.classList.remove('on'); }
+
+  // Update dots
+  document.querySelectorAll('.dot-s').forEach((d, i) => {
+    d.className = 'dot-s' + (i === to ? ' on' : '');
+  });
+}
+
+// ── DRAWER ──
+function toggleMenu() {
+  document.getElementById('drawer').classList.toggle('on');
+  document.getElementById('overlay').classList.toggle('on');
+}
+function closeMenu() {
+  document.getElementById('drawer').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+// ── ANALYSIS VOLETS ──
+function toggleAV(id) {
+  const el = document.getElementById('av-' + id);
+  const bd = document.getElementById('bd-' + id);
+  const isOn = el.classList.contains('on');
+  el.classList.toggle('on');
+  if (!isOn) {
+    bd.style.display = 'block';
+    bd.style.animation = 'fadeUp .25s ease';
+  } else {
+    bd.style.display = 'none';
+  }
+}
+
+// ── CHECK READY ──
+function checkAll() {
+  const z = document.getElementById('zone');
+  const ok = z && z.value.trim().length > 0;
+  const wrap = document.getElementById('continueWrap');
+  if (wrap) wrap.classList.toggle('on', ok);
+  ['destination','surelevation','extension'].forEach(id => {
+    const b = document.getElementById('btn-' + id);
+    if (b) b.disabled = !ok;
+  });
+}
+
+// ── GEO ──
+function showGeo(type, html) {
+  const el = document.getElementById('geoBox');
+  el.className = 'geo-box geo-' + type;
+  el.innerHTML = html;
+}
+
+// ── FIND ZONE ──
+  async function safeJson(r) {
+    const text = await r.text();
+    try { return JSON.parse(text); }
+    catch (e) {
+      // Réponse non-JSON (page d'erreur Vercel: timeout, mémoire, crash...)
+      const hint = r.status === 504 ? "délai dépassé — réessayez, la recherche peut être longue sur les gros PLUi"
+                 : r.status >= 500 ? "erreur serveur (" + r.status + ") — réessayez dans quelques instants"
+                 : "réponse inattendue du serveur (" + r.status + ")";
+      throw new Error("Le serveur n'a pas pu traiter la demande : " + hint + ".");
+    }
+  }
+async function findZone() {
+  const addr = document.getElementById('address').value.trim();
+  if (!addr) return;
+  const btn = document.getElementById('btnFind');
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  showGeo('load', '📍 Recherche en cours…');
+  try {
+    const r = await fetch('/api/zone', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:addr})});
+    const d = await safeJson(r);
+    if (!r.ok) throw new Error(d.error);
+    if (d.zone) {
+      const zEl = document.getElementById('zone');
+      if (zEl) { zEl.value = d.zone; checkAll(); }
+      currentAddress = d.address || '';
+      currentCity = d.cityname || (d.address ? d.address.split(/\s+/).slice(-1)[0] : '');
+      const ppriEl = document.getElementById('ppriWarning');
+      if (d.ppri && ppriEl) {
+        ppriEl.innerHTML = '🌊 Zone inondable — ' + d.ppri.nom + (d.ppri.statut ? ' (' + d.ppri.statut + ')' : '');
+        ppriEl.style.display = 'block';
+      } else if (ppriEl) {
+        ppriEl.style.display = 'none';
+      }
+
+      // Affichage SMS
+      const smsEl = document.getElementById('smsWarning');
+      const smsMissingEl = document.getElementById('smsMissingWarning');
+      if (d.sms && d.sms.length > 0 && smsEl) {
+        const labels = d.sms.map(s => s.libelle).join(', ');
+        smsEl.innerHTML = '🏘️ <strong>Secteur de Mixité Sociale détecté :</strong> ' + labels;
+        smsEl.style.display = 'block';
+        if (smsMissingEl) smsMissingEl.style.display = 'none';
+      } else if (d.sms !== null && d.sms !== undefined) {
+        // Réponse reçue mais aucun SMS à cette adresse
+        if (smsMissingEl) {
+          smsMissingEl.innerHTML = '✓ Aucun secteur de mixité sociale (SMS) à cette adresse';
+          smsMissingEl.style.display = 'block';
+        }
+        if (smsEl) smsEl.style.display = 'none';
+      } else {
+        // Pas de réponse (erreur API) — on n'affiche rien
+        if (smsEl) smsEl.style.display = 'none';
+        if (smsMissingEl) smsMissingEl.style.display = 'none';
+      }
+      const procEl = document.getElementById('procWarning');
+      if (d.procedures && d.procedures.length && procEl) {
+        procEl.innerHTML = '📋 <strong>Procédure(s) d\'urbanisme postérieure(s) au document publié :</strong> ' + d.procedures.join(' ; ') + ' — le règlement affiché peut être en cours d\'évolution, à vérifier auprès de la collectivité.';
+        procEl.style.display = 'block';
+      } else if (procEl) {
+        procEl.style.display = 'none';
+      }
+      showGeo('ok', '✅ <strong>' + d.address + '</strong><br>Zone : <strong style="color:var(--blue);font-size:15px">' + d.zone + '</strong>');
+    } else {
+      showGeo('warn', '📍 ' + d.address + '<br>⚠️ Zone non trouvée — renseignez manuellement.');
+    }
+    if (d.pluUrl) {
+      pluUrl = d.pluUrl;
+      zonageUrl = d.zonageUrl || null;
+      planUrls = d.planUrls || [];
+      smsData = d.sms || null;
+      const po = document.getElementById('pluOk');
+      let html = '📄 <strong style="color:var(--ink2)">' + (d.pluName||'Règlement PLU') + '</strong>';
+      html += ' &nbsp;<a href="' + d.pluUrl + '" target="_blank" style="color:var(--blue);font-size:12px">↗ Règlement</a>';
+      if (planUrls.length) {
+        html += ' &nbsp;<button onclick="togglePlans()" style="background:none;border:none;color:var(--blue);font-size:12px;cursor:pointer;padding:0">↗ Plans graphiques (' + planUrls.length + ')</button>';
+        html += '<div id="plansList" style="display:none;margin-top:8px;background:var(--s2);border-radius:8px;padding:8px 12px;border:1px solid var(--bdr)">';
+        planUrls.forEach(p => {
+          html += '<div style="margin-bottom:4px"><a href="' + p.url + '" target="_blank" style="color:var(--blue);font-size:12px">↗ ' + p.nom + '</a></div>';
+        });
+        html += '</div>';
+      } else if (d.citycode) {
+        // Pas de plans PDF → visionneuse GPU + recherche mairie
+        const viewerUrl = 'https://www.geoportail-urbanisme.gouv.fr/map/#zoom=15&lon=' + (d.coordinates?.lon||2.35) + '&lat=' + (d.coordinates?.lat||48.85);
+        const communeName = d.address?.match(/\d{5}\s+(.+)$/)?.[1] || currentCity || '';
+        const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent('PLU plans graphiques ' + communeName + ' mairie télécharger');
+        html += ' &nbsp;<a href="' + viewerUrl + '" target="_blank" style="color:var(--blue);font-size:12px">🗺 Visionneuse</a>';
+        html += ' &nbsp;<a href="' + searchUrl + '" target="_blank" style="color:var(--blue);font-size:12px">🔍 Plans sur le site de la mairie</a>';
+      }
+      po.innerHTML = html;
+      po.style.display = 'block';
+    }
+    setTimeout(() => {
+      if (d.zone && d.address) saveHistory(d.address, d.zone, d.pluName);
+      if (d.pluName) checkPluAge(d.pluName);
+    }, 500);
+  } catch(e) {
+    showGeo('err', '❌ ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Trouver';
+  }
+}
+
+// ── RUN ANALYSIS ──
+const abortControllers = {};
+
+function restoreBtn(type) {
+  const btnEl = document.getElementById('btn-' + type);
+  btnEl.textContent = 'Lancer l\'analyse';
+  btnEl.style.background = '';
+  btnEl.disabled = false;
+  btnEl.onclick = () => runAnalysis(type);
+}
+function cancelAnalysis(type) {
+  if (abortControllers[type]) { abortControllers[type].abort(); delete abortControllers[type]; }
+  document.getElementById('sp-' + type).className = 'spin';
+  restoreBtn(type);
+}
+function setProgress(type, pct, step) {
+  const pf = document.getElementById('pf-' + type);
+  const pctEl = document.getElementById('pct-' + type);
+  const stepEl = document.getElementById('step-' + type);
+  if (pf) pf.style.width = pct + '%';
+  if (pctEl) pctEl.textContent = pct + '%';
+  if (stepEl && step) stepEl.textContent = step;
+}
+
+async function runAnalysis(type) {
+  const zEl = document.getElementById('zone');
+  const zone = zEl ? zEl.value.trim() : '';
+  if (!zone) return;
+  const errEl = document.getElementById('err-' + type);
+  const spEl = document.getElementById('sp-' + type);
+  const resEl = document.getElementById('res-' + type);
+  const btnEl = document.getElementById('btn-' + type);
+  errEl.className = 'err'; resEl.className = 'res';
+  spEl.className = 'spin on';
+  btnEl.textContent = '✕ Annuler l\'analyse';
+  btnEl.style.background = '#dc2626';
+  btnEl.style.boxShadow = '0 2px 10px rgba(220,38,38,.25)';
+  btnEl.disabled = false;
+  btnEl.onclick = () => cancelAnalysis(type);
+  setProgress(type, 5, 'Téléchargement du règlement…');
+
+  const controller = new AbortController();
+  abortControllers[type] = controller;
+
+  const steps = [
+    [8,  'Téléchargement du règlement…'],
+    [20, 'Traitement d\'un règlement volumineux — extraction complète en cours…'],
+    [35, 'Extraction du texte réglementaire…'],
+    [50, 'Lecture des articles de la zone…'],
+    [65, 'Recherche des règles transversales…'],
+    [78, 'Analyse juridique en cours…'],
+    [90, 'Rédaction de la synthèse…'],
+  ];
+  let stepIdx = 0;
+  const progressInterval = setInterval(() => {
+    if (stepIdx < steps.length) { setProgress(type, steps[stepIdx][0], steps[stepIdx][1]); stepIdx++; }
+  }, 2000);
+
+  try {
+    const r = await fetch('/api/analyze', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({zone, analysisType: type, pluUrl, pluBase64, commune: currentCity, address: currentAddress, zonageUrl, planUrls, projet: (document.getElementById('projetDesc')?.value || '').trim() || undefined, smsData}),
+      signal: controller.signal
+    });
+    clearInterval(progressInterval);
+    setProgress(type, 95, 'Finalisation…');
+    const d = await safeJson(r);
+    if (!r.ok) throw new Error(d.error);
+    setProgress(type, 100, d.error_code === 'PDF_TROP_VOLUMINEUX' ? 'Document trop volumineux' : 'Terminé !');
+    await new Promise(res => setTimeout(res, 300));
+    spEl.className = 'spin';
+    restoreBtn(type);
+    document.getElementById('zt-' + type).textContent = 'Zone ' + (d.zone || zone);
+    if (!d.success && d.error_code === 'PDF_TROP_VOLUMINEUX') {
+      document.getElementById('rb-' + type).innerHTML = renderPdfTooBig(d);
+    } else if (d.sections) {
+      results[type] = { sections: d.sections, conclusion_operationnelle: d.conclusion_operationnelle };
+      document.getElementById('rb-' + type).innerHTML = renderResult(results[type]);
+    } else {
+      results[type] = d.raw || d.result || '';
+      document.getElementById('rb-' + type).innerHTML = renderResult(results[type]);
+    }
+    resEl.className = 'res on';
+    delete abortControllers[type];
+  } catch(e) {
+    clearInterval(progressInterval);
+    spEl.className = 'spin';
+    restoreBtn(type);
+    if (e.name !== 'AbortError') { errEl.textContent = '⚠️ ' + e.message; errEl.className = 'err on'; }
+    delete abortControllers[type];
+  }
+}
+
+// ── MARKDOWN ──
+function downloadNote(type) {
+  const zone = document.getElementById('zone')?.value || '';
+  const address = currentAddress || '';
+  const result = results[type];
+  const opLabels = {destination:'Changement de destination',surelevation:'Surélévation',extension:'Extension'};
+  const opLabel = opLabels[type] || type;
+  const date = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  // Résout le résultat stocké : objet structuré, string avec JSON embarqué, ou texte markdown
+  let structuredData = null;
+  if (result && typeof result === 'object' && result.sections) {
+    structuredData = result;
+  } else if (typeof result === 'string') {
+    structuredData = tryParseRaw(result);
+  }
+  let html;
+  if (structuredData) {
+    html = generateExportHtml(structuredData, zone, address, opLabel, date);
+  } else {
+    const text = typeof result === 'string' ? result : '';
+    html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Note de synthèse PLU — ${zone}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;max-width:780px;margin:40px auto;color:#1a1a1a;font-size:14px;line-height:1.7;padding:0 24px}.header{border-bottom:2px solid #2C4A6E;padding-bottom:16px;margin-bottom:24px}.header h1{font-size:20px;color:#2C4A6E;margin:0 0 4px}.header .meta{font-size:12px;color:#666}h2{font-size:15px;font-weight:600;color:#1a1a1a;margin:20px 0 8px;padding-left:10px;border-left:3px solid #2C4A6E}blockquote{background:#f5f5f3;border-left:3px solid #2C4A6E;padding:8px 14px;margin:10px 0;font-size:13px;color:#444;border-radius:0 5px 5px 0}p{margin:0 0 8px}strong{font-weight:600}table{width:100%;border-collapse:collapse;margin:12px 0}th{background:#2C4A6E;color:#fff;padding:8px 12px;text-align:left;font-size:13px}td{padding:7px 12px;border:1px solid #ddd;font-size:13px}tr:nth-child(even) td{background:#f9f8f6}.footer{margin-top:40px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#999}@media print{body{margin:20px}}</style></head><body><div class="header"><h1>Note de synthèse — UrbanScan</h1><div class="meta"><strong>Adresse :</strong> ${address} &nbsp;|&nbsp; <strong>Zone :</strong> ${zone} &nbsp;|&nbsp; <strong>Opération :</strong> ${opLabel}<br><strong>Date :</strong> ${date}</div></div>${mdToHtml(text)}<div class="footer">Document généré par UrbanScan · Analyse basée sur le règlement écrit. Pour un dépôt de permis, faire vérifier les plans graphiques par un architecte.</div></body></html>`;
+  }
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'note-synthese-PLU-' + zone + '-' + date.replace(/ /g,'-') + '.html'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function mdToHtml(s) {
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" style="color:#2563eb;text-decoration:underline">$1</a>');
+  return s.replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>').replace(/^- (.+)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,m=>'<ul>'+m+'</ul>').replace(/((?:^\|.+\|\n?)+)/gm,table=>{const rows=table.trim().split('\n').filter(r=>!/^\|[-:\s|]+\|$/.test(r));return '<table>'+rows.map((r,i)=>{const cells=r.split('|').slice(1,-1).map(c=>c.trim());const tag=i===0?'th':'td';return '<tr>'+cells.map(c=>`<${tag}>${c}</${tag}>`).join('')+'</tr>';}).join('')+'</table>';}).replace(/\n/g,'<br>');
+}
+
+function mdParse(s) {
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" style="color:var(--blue);text-decoration:underline">$1</a>');
+
+  // Détecte les emojis de verdict pour les badges colorés
+  function colorVerdicts(h) {
+    return h
+      .replace(/(✅[^\n<]+)/g,'<span class="v-ok">$1</span>')
+      .replace(/(⚠️[^\n<]+)/g,'<span class="v-warn">$1</span>')
+      .replace(/(❌[^\n<]+)/g,'<span class="v-nok">$1</span>')
+      .replace(/(❓[^\n<]+)/g,'<span class="v-unk">$1</span>');
+  }
+
+  function renderMd(block) {
+    let h = block
+      .replace(/^---$/gm,'<hr>')
+      .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
+      .replace(/^[\-•] (.+)$/gm,'<li>$1</li>')
+      .replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+    h = h.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => '<ul>'+m+'</ul>');
+    h = h.replace(/((?:^\|.+\|\n?)+)/gm, table => {
+      const rows = table.trim().split('\n').filter(r => !/^\|[-:\s|]+\|$/.test(r));
+      if (rows.length < 1) return table;
+      return '<table>' + rows.map((r, i) => {
+        const cells = r.split('|').slice(1,-1).map(c => c.trim());
+        const tag = i === 0 ? 'th' : 'td';
+        return '<tr>' + cells.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+      }).join('') + '</table>';
+    });
+    h = h.split('\n').map(l => {
+      l = l.trim();
+      if (!l) return '';
+      if (/^<(h3|ul|table|blockquote|hr)/.test(l)) return l;
+      return '<p>' + l + '</p>';
+    }).join('\n');
+    return colorVerdicts(h);
+  }
+
+  // Découpe en sections sur les titres ## (accordéon)
+  // La section ⓪ Synthèse est toujours ouverte, les autres fermées
+  const sectionRe = /^## (.+)$/gm;
+  const parts = [];
+  let last = 0, lastTitle = null, m;
+  while ((m = sectionRe.exec(s)) !== null) {
+    if (lastTitle !== null) parts.push({ title: lastTitle, body: s.slice(last, m.index) });
+    else if (last < m.index) parts.push({ title: null, body: s.slice(0, m.index) }); // texte avant le 1er ##
+    lastTitle = m[1];
+    last = m.index + m[0].length + 1;
+  }
+  if (lastTitle !== null) parts.push({ title: lastTitle, body: s.slice(last) });
+  else parts.push({ title: null, body: s }); // pas de ##
+
+  if (parts.length <= 1 || !parts.some(p => p.title)) {
+    // Pas de sections détectées → rendu classique
+    return renderMd(s);
+  }
+
+  let out = '';
+  let accIdx = 0;
+  for (const part of parts) {
+    if (!part.title) {
+      out += '<div class="acc-intro">' + renderMd(part.body) + '</div>';
+      continue;
+    }
+    const isFirst = accIdx === 0;
+    const id = 'acc-' + accIdx++;
+    // Extrait un badge de verdict du titre (✅ ⚠️ ❌ ❓) s'il y en a un dans les 2 premières lignes
+    const previewLine = part.body.trim().split('\n').find(l => /✅|⚠️|❌|❓/.test(l)) || '';
+    const badge = previewLine.match(/✅|⚠️|❌|❓/)?.[0] || '';
+    const badgeClass = badge === '✅' ? 'v-ok' : badge === '⚠️' ? 'v-warn' : badge === '❌' ? 'v-nok' : badge === '❓' ? 'v-unk' : '';
+    out += `<div class="acc-item${isFirst ? ' open' : ''}">
+  <button class="acc-hd" onclick="toggleAcc('${id}')">
+    <span class="acc-title">${part.title}</span>
+    ${badge ? `<span class="acc-badge ${badgeClass}">${badge}</span>` : ''}
+    <span class="acc-arrow">›</span>
+  </button>
+  <div class="acc-bd" id="${id}"${isFirst ? '' : ' style="display:none"'}>
+    ${renderMd(part.body)}
+  </div>
+</div>`;
+  }
+  return out;
+}
+
+// ── STRUCTURED ANALYSIS RENDERER ──
+
+// Tente d'extraire et parser le JSON structuré depuis un texte brut
+// (couvre <json>…</json> et ```json … ```)
+function tryParseRaw(text) {
+  if (!text || typeof text !== 'string') return null;
+  try {
+    const m = text.match(/<json>([\s\S]*?)<\/json>/)
+            || text.match(/```json\s*([\s\S]*?)```/);
+    if (!m) return null;
+    const parsed = JSON.parse(m[1].trim());
+    if (!Array.isArray(parsed.sections)) return null;
+    return { sections: parsed.sections, conclusion_operationnelle: parsed.conclusion_operationnelle || null };
+  } catch (e) { return null; }
+}
+
+// Rendu spécifique pour règlement trop volumineux — conserve les documents disponibles
+function renderPdfTooBig(d) {
+  const docs = Array.isArray(d.documents_disponibles) ? d.documents_disponibles : [];
+  const docsHtml = docs.length ? `<div style="margin-top:14px">
+    <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:7px">Plans graphiques disponibles</div>
+    ${docs.map(p => `<div style="margin-bottom:5px"><a href="${escHtml(p.url)}" target="_blank" rel="noopener" style="color:var(--blue);font-size:13px;text-decoration:none">↗ ${escHtml(p.nom)}</a></div>`).join('')}
+  </div>` : '';
+  const downloadHtml = d.reglement_url
+    ? `<a href="${escHtml(d.reglement_url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:#fff;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;text-decoration:none;margin-top:10px">↓ Télécharger le règlement complet</a>`
+    : '';
+  return `<div style="padding:16px 18px">
+  <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">
+    <span style="font-size:22px;flex-shrink:0">📄</span>
+    <div>
+      <div style="font-weight:600;color:var(--ink);font-size:14px">Règlement trop volumineux pour l'analyse automatique</div>
+      <div style="font-size:12.5px;color:var(--ink2);margin-top:3px">${escHtml(d.message || '')}</div>
+    </div>
+  </div>
+  <div style="background:var(--s2);border-radius:8px;padding:11px 14px;font-size:13px;color:var(--ink2);border-left:3px solid var(--amber-t)">
+    <strong>Solution :</strong> Téléchargez le règlement ci-dessous, puis uploadez uniquement les pages concernant la zone <strong>${escHtml(d.zone || '')}</strong> via le champ "Uploader un PDF".
+  </div>
+  ${downloadHtml}
+  ${docsHtml}
+</div>`;
+}
+
+// Dispatche vers le rendu structuré ou un message d'erreur propre — jamais de JSON brut affiché
+function renderResult(stored) {
+  if (stored && typeof stored === 'object' && Array.isArray(stored.sections)) {
+    return renderAnalysis(stored);
+  }
+  if (typeof stored === 'string') {
+    const parsed = tryParseRaw(stored);
+    if (parsed) return renderAnalysis(parsed);
+    if (stored.trim()) {
+      // Texte brut sans JSON détectable (ancien format markdown)
+      return mdParse(stored);
+    }
+  }
+  return '<p style="color:#dc2626;font-size:13px;padding:12px 0">Analyse structurée indisponible — relancez l\'analyse.</p>';
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function paragraphs(text) {
+  if (!text) return '';
+  return text.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => '<p>' + escHtml(l) + '</p>').join('');
+}
+function badgeClass(statut) {
+  if (statut === '✅') return 'ok';
+  if (statut === '⚠️') return 'warn';
+  if (statut === '❌') return 'nok';
+  if (statut === '🗺️') return 'map';
+  return 'unk';
+}
+function riskClass(niveau) {
+  const n = (niveau || '').toLowerCase();
+  if (n === 'faible') return 'risk-low';
+  if (n.includes('lev') || n === 'élevé') return 'risk-high';
+  return 'risk-mid';
+}
+function renderAnalysis(data) {
+  const { sections, conclusion_operationnelle: conc } = data;
+  let html = '';
+  sections.forEach((sec, i) => {
+    const bc = badgeClass(sec.statut);
+    const pidDetail = 'sap-d-' + i, pidRegle = 'sap-r-' + i, pidVigil = 'sap-v-' + i;
+    const hasDetail = sec.analyse_detaillee && sec.analyse_detaillee.length > 10;
+    const hasCitation = sec.citation && sec.citation.length > 5;
+    const hasRule = sec.regle_principale && sec.regle_principale !== 'Non trouvé dans les extraits.' && sec.regle_principale.length > 5;
+    const hasVigilance = sec.points_vigilance && sec.points_vigilance.length > 0;
+    const hasDocs = Array.isArray(sec.documents_a_consulter) && sec.documents_a_consulter.length > 0;
+    const hasAction = sec.action_recommandee && sec.action_recommandee.length > 5;
+    const showVigilPanel = hasVigilance || hasDocs || hasAction;
+    const docsHtml = hasDocs ? sec.documents_a_consulter.map(d => {
+      const displayName = d.nom_document || d.reference || 'Document à consulter';
+      const refHtml = d.reference && d.reference !== displayName ? `<div class="sa-doc-ref">Référence : ${escHtml(d.reference)}</div>` : '';
+      const linkHtml = d.url
+        ? `<a href="${escHtml(d.url)}" target="_blank" rel="noopener">↗ Télécharger / consulter</a>`
+        : `<span class="sa-doc-fallback">Lien direct non disponible — consulter le Géoportail de l'Urbanisme pour cette commune.</span>`;
+      return `<div class="sa-doc-block"><div class="sa-doc-title">📄 ${escHtml(displayName)}</div>${refHtml}<div class="sa-doc-raison">${escHtml(d.raison)}</div>${linkHtml}</div>`;
+    }).join('') : '';
+    html += `<div class="sa-section">
+<div class="sa-section-hd">
+  <div class="sa-badge ${bc}">${escHtml(sec.statut)}</div>
+  <div class="sa-info">
+    <div class="sa-title">${escHtml(sec.titre)}<span class="sa-title-label ${bc}">${escHtml(sec.statut_label)}</span></div>
+    <div class="sa-resume">${escHtml(sec.resume)}</div>
+    ${hasRule ? `<div class="sa-rule-visible">${escHtml(sec.regle_principale)}</div>` : ''}
+    ${(sec.article || sec.page) ? `<div class="sa-source">${sec.article ? '<strong>' + escHtml(sec.article) + '</strong>' : ''}${sec.article && sec.page ? ' · ' : ''}${sec.page ? 'p. ' + escHtml(sec.page) : ''}</div>` : ''}
+  </div>
+</div>
+<div class="sa-toggles">
+  ${hasDetail ? `<button class="sa-toggle-btn" onclick="togglePanel('${pidDetail}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>Plus de détail</button>` : ''}
+  ${(hasRule || hasCitation) ? `<button class="sa-toggle-btn" onclick="togglePanel('${pidRegle}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>Texte réglementaire</button>` : ''}
+  ${showVigilPanel ? `<button class="sa-toggle-btn" onclick="togglePanel('${pidVigil}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>Points de vigilance</button>` : ''}
+</div>
+${hasDetail ? `<div class="sa-panel" id="${pidDetail}" style="display:none">${paragraphs(sec.analyse_detaillee)}</div>` : ''}
+${(hasRule || hasCitation) ? `<div class="sa-panel" id="${pidRegle}" style="display:none">${hasRule ? '<h4>Règle principale</h4><div class="sa-rule-tag">' + escHtml(sec.regle_principale) + '</div>' : ''}${hasCitation ? '<h4>Extrait du règlement</h4><blockquote>' + escHtml(sec.citation) + '</blockquote>' : ''}</div>` : ''}
+${showVigilPanel ? `<div class="sa-panel" id="${pidVigil}" style="display:none">${hasVigilance ? '<h4>Points de vigilance</h4><ul>' + sec.points_vigilance.map(p => '<li>' + escHtml(p) + '</li>').join('') + '</ul>' : ''}${docsHtml}${hasAction ? '<div class="sa-action">📋 ' + escHtml(sec.action_recommandee) + '</div>' : ''}</div>` : ''}
+</div>`;
+  });
+  if (conc) {
+    const rc = riskClass(conc.niveau_risque);
+    html += `<div class="sa-conclusion">
+<div class="sa-conclusion-hd"><h3>Conclusion opérationnelle</h3><span class="risk-badge ${rc}">Risque ${escHtml(conc.niveau_risque)}</span></div>
+<div class="sa-conclusion-body">
+<div class="sa-conc-grid">
+  ${conc.points_bloquants?.length ? `<div class="sa-conc-box red"><h4>Points bloquants</h4><ul>${conc.points_bloquants.map(p=>'<li>'+escHtml(p)+'</li>').join('')}</ul></div>` : ''}
+  ${conc.conditions?.length ? `<div class="sa-conc-box amber"><h4>Sous conditions</h4><ul>${conc.conditions.map(p=>'<li>'+escHtml(p)+'</li>').join('')}</ul></div>` : ''}
+  ${conc.sujets_a_verifier?.length ? `<div class="sa-conc-box"><h4>À vérifier</h4><ul>${conc.sujets_a_verifier.map(p=>'<li>'+escHtml(p)+'</li>').join('')}</ul></div>` : ''}
+  ${conc.opportunites?.length ? `<div class="sa-conc-box green"><h4>Opportunités</h4><ul>${conc.opportunites.map(p=>'<li>'+escHtml(p)+'</li>').join('')}</ul></div>` : ''}
+  ${conc.non_applicables?.length ? `<div class="sa-conc-box"><h4>Non applicables</h4><ul>${conc.non_applicables.map(p=>'<li>'+escHtml(p)+'</li>').join('')}</ul></div>` : ''}
+</div>
+${conc.synthese ? `<div class="sa-synthese">${escHtml(conc.synthese)}</div>` : ''}
+</div>
+</div>`;
+  }
+  return html;
+}
+function togglePanel(id, btn) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  btn.classList.toggle('active', !isOpen);
+}
+
+// ── EXPORT HTML (all panels expanded) ──
+function badgeStyleExport(statut) {
+  if (statut === '✅') return 'background:#d1fae5;color:#065f46';
+  if (statut === '⚠️') return 'background:#fef3c7;color:#92400e';
+  if (statut === '❌') return 'background:#fee2e2;color:#991b1b';
+  if (statut === '🗺️') return 'background:#dbeafe;color:#1e40af';
+  return 'background:#f1f5f9;color:#64748b';
+}
+function generateExportHtml(data, zone, address, opLabel, date) {
+  const { sections, conclusion_operationnelle: conc } = data;
+  let sHtml = '';
+  sections.forEach(sec => {
+    const bs = badgeStyleExport(sec.statut);
+    const hasDetail = sec.analyse_detaillee && sec.analyse_detaillee.length > 10;
+    const hasCitation = sec.citation && sec.citation.length > 5;
+    const hasRule = sec.regle_principale && sec.regle_principale !== 'Non trouvé dans les extraits.' && sec.regle_principale.length > 5;
+    const hasVigilance = sec.points_vigilance && sec.points_vigilance.length > 0;
+    const hasDocs = Array.isArray(sec.documents_a_consulter) && sec.documents_a_consulter.length > 0;
+    const hasAction = sec.action_recommandee && sec.action_recommandee.length > 5;
+    const showVigilExp = hasVigilance || hasDocs || hasAction;
+    const docsExpHtml = hasDocs ? sec.documents_a_consulter.map(d => {
+      const displayName = d.nom_document || d.reference || 'Document à consulter';
+      const refHtml = d.reference && d.reference !== displayName ? `<br><span style="color:#64748b">Référence : ${escHtml(d.reference)}</span>` : '';
+      const linkHtml = d.url
+        ? `<a href="${escHtml(d.url)}" style="color:#2563eb">↗ Télécharger / consulter</a>`
+        : `<span style="color:#6b7280;font-style:italic">Lien direct non disponible — consulter le Géoportail de l'Urbanisme pour cette commune.</span>`;
+      return `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:7px;border-left:3px solid #3b82f6;font-size:12px"><strong style="color:#1e40af">📄 ${escHtml(displayName)}</strong>${refHtml}<br><span style="color:#374151">${escHtml(d.raison || '')}</span><br>${linkHtml}</div>`;
+    }).join('') : '';
+    const actionExpHtml = hasAction ? `<div style="margin-top:6px;font-size:12px;color:#92400e;background:#fffbeb;border-radius:6px;padding:5px 10px;border-left:3px solid #f59e0b">📋 ${sec.action_recommandee}</div>` : '';
+    sHtml += `<div class="section">
+<div class="shd"><span class="badge" style="${bs}">${sec.statut}</span><div class="sinfo">
+<div class="stitle">${sec.titre}<span class="slabel" style="${bs}">${sec.statut_label}</span></div>
+<div class="sresume">${sec.resume}</div>
+${(sec.article||sec.page)?`<div class="ssource">${sec.article||''}${sec.article&&sec.page?' · ':''}${sec.page?'p. '+sec.page:''}</div>`:''}
+</div></div>
+${hasDetail?`<div class="panel"><div class="pt">Analyse détaillée</div>${sec.analyse_detaillee.split(/\n+/).filter(Boolean).map(l=>'<p>'+l+'</p>').join('')}</div>`:''}
+${(hasRule||hasCitation)?`<div class="panel"><div class="pt">Texte réglementaire</div>${hasRule?'<div class="rtag">'+sec.regle_principale+'</div>':''}${hasCitation?'<blockquote>'+sec.citation+'</blockquote>':''}</div>`:''}
+${showVigilExp?`<div class="panel"><div class="pt">Points de vigilance</div>${hasVigilance?'<ul>'+sec.points_vigilance.map(p=>'<li>'+p+'</li>').join('')+'</ul>':''}${docsExpHtml}${actionExpHtml}</div>`:''}
+</div>`;
+  });
+  let cHtml = '';
+  if (conc) {
+    const rs = conc.niveau_risque==='Faible'?'background:#dcfce7;color:#166534':conc.niveau_risque==='Élevé'?'background:#fee2e2;color:#991b1b':'background:#fef9c3;color:#854d0e';
+    cHtml = `<div class="conclusion"><div class="chd"><span>Conclusion opérationnelle</span><span class="risk" style="${rs}">Risque ${conc.niveau_risque}</span></div><div class="cbody">
+<div class="grid">
+${conc.points_bloquants?.length?`<div class="box red"><div class="bt">Points bloquants</div><ul>${conc.points_bloquants.map(p=>'<li>'+p+'</li>').join('')}</ul></div>`:''}
+${conc.conditions?.length?`<div class="box amber"><div class="bt">Sous conditions</div><ul>${conc.conditions.map(p=>'<li>'+p+'</li>').join('')}</ul></div>`:''}
+${conc.sujets_a_verifier?.length?`<div class="box"><div class="bt">À vérifier</div><ul>${conc.sujets_a_verifier.map(p=>'<li>'+p+'</li>').join('')}</ul></div>`:''}
+${conc.opportunites?.length?`<div class="box green"><div class="bt">Opportunités</div><ul>${conc.opportunites.map(p=>'<li>'+p+'</li>').join('')}</ul></div>`:''}
+${conc.non_applicables?.length?`<div class="box"><div class="bt">Non applicables</div><ul>${conc.non_applicables.map(p=>'<li>'+p+'</li>').join('')}</ul></div>`:''}
+</div>
+${conc.synthese?`<div class="synthese">${conc.synthese}</div>`:''}
+</div></div>`;
+  }
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Note de faisabilité PLU — ${zone}</title><style>
+body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:40px auto;color:#1a1a1a;font-size:14px;line-height:1.7;padding:0 24px}
+.header{border-bottom:2px solid #2C4A6E;padding-bottom:16px;margin-bottom:24px}
+.header h1{font-size:20px;color:#2C4A6E;margin:0 0 4px}.header .meta{font-size:12px;color:#666}
+.section{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:12px}
+.shd{display:flex;align-items:flex-start;gap:12px;padding:14px 18px 10px}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;font-size:14px;flex-shrink:0;margin-top:2px}
+.sinfo{flex:1}
+.stitle{font-size:13.5px;font-weight:600;color:#1a1a1a;margin-bottom:3px}
+.slabel{display:inline-block;font-size:11px;font-weight:500;border-radius:4px;padding:1px 7px;margin-left:8px}
+.sresume{font-size:13px;color:#4a5568;line-height:1.65}
+.ssource{font-size:11px;color:#3b82f6;margin-top:4px}
+.panel{border-top:1px solid #e2e8f0;padding:12px 18px}
+.pt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:8px}
+.panel p{margin:0 0 8px;font-size:13px;color:#4a5568;line-height:1.7}.panel p:last-child{margin-bottom:0}
+blockquote{background:#f8fafc;border-left:3px solid #2C4A6E;padding:8px 14px;margin:8px 0;font-size:12.5px;color:#334155;border-radius:0 5px 5px 0}
+.rtag{display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:2px 10px;font-size:12px;font-weight:500;margin-bottom:8px}
+ul{padding-left:16px;margin:4px 0}li{font-size:12.5px;line-height:1.65;color:#4a5568;margin-bottom:3px}
+.conclusion{border:1.5px solid #2C4A6E;border-radius:12px;overflow:hidden;margin-top:20px}
+.chd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,#1a2e4a 0%,#2C4A6E 100%);color:#fff;font-size:14px;font-weight:600}
+.risk{font-size:11.5px;font-weight:600;padding:3px 12px;border-radius:99px}
+.cbody{padding:14px 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:11px 14px}
+.box.red{background:#fff5f5;border-color:#fecaca}.box.amber{background:#fffbeb;border-color:#fde68a}.box.green{background:#f0fdf4;border-color:#86efac}
+.bt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:7px}
+.box.red .bt{color:#991b1b}.box.amber .bt{color:#92400e}.box.green .bt{color:#166534}
+.synthese{font-size:13.5px;line-height:1.85;color:#4a5568;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:12px}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8}
+@media print{body{margin:20px}}
+</style></head><body>
+<div class="header"><h1>Note de faisabilité urbanistique — UrbanScan</h1><div class="meta"><strong>Adresse :</strong> ${address} &nbsp;|&nbsp; <strong>Zone :</strong> ${zone} &nbsp;|&nbsp; <strong>Opération :</strong> ${opLabel}<br><strong>Date :</strong> ${date}</div></div>
+${sHtml}${cHtml}
+<div class="footer">Document généré par UrbanScan · Analyse basée sur le règlement écrit. Pour un dépôt de permis, faire vérifier les plans graphiques par un architecte.</div>
+</body></html>`;
+}
+
+function toggleAcc(id) {
+  const bd = document.getElementById(id);
+  const item = bd.closest('.acc-item');
+  const isOpen = item.classList.contains('open');
+  item.classList.toggle('open', !isOpen);
+  bd.style.display = isOpen ? 'none' : '';
+  item.querySelector('.acc-arrow').textContent = isOpen ? '›' : '‹';
+}
+
+function copyR(type) {
+  if (!results[type]) return;
+  const r = results[type];
+  const text = (r && typeof r === 'object') ? JSON.stringify(r, null, 2) : r;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.querySelector('#res-'+type+' .bsm.blue');
+    b.textContent = '✓ Copié !';
+    setTimeout(() => b.innerHTML = '📋 Copier', 2000);
+  });
+}
+function resetR(type) { results[type] = null; document.getElementById('res-'+type).className = 'res'; document.getElementById('err-'+type).className = 'err'; }
+
+// ── FILE UPLOADS ──
+function loadFile(file, tagId) {
+  if (!file || file.type !== 'application/pdf') return;
+  const ft = document.getElementById(tagId);
+  if (ft) { ft.textContent = '✓ ' + file.name; ft.style.display = 'flex'; }
+  const reader = new FileReader();
+  reader.onload = e => { pluBase64 = e.target.result.split(',')[1]; checkAll(); };
+  reader.readAsDataURL(file);
+}
+function setupDrop(dropId, fileId, tagId) {
+  const dz = document.getElementById(dropId);
+  const fi = document.getElementById(fileId);
+  if (!dz || !fi) return;
+  fi.addEventListener('change', e => loadFile(e.target.files[0], tagId));
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); loadFile(e.dataTransfer.files[0], tagId); });
+}
+
+// ── HISTORIQUE ──
+function saveHistory(address, zone, pluName) {
+  const history = JSON.parse(localStorage.getItem('plu_history') || '[]');
+  history.unshift({ date: new Date().toLocaleDateString('fr-FR'), address, zone, pluName: pluName || '' });
+  localStorage.setItem('plu_history', JSON.stringify(history.slice(0, 20)));
+  renderHistory();
+}
+function renderHistory() {
+  const history = JSON.parse(localStorage.getItem('plu_history') || '[]');
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  if (!list) return;
+  if (!history.length) { empty.style.display = 'block'; list.innerHTML = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = history.map((h, i) => `<div class="hist-item" onclick="loadHistory(${i})"><div class="hist-date">${h.date}</div><div class="hist-addr">${h.address}</div><div class="hist-zone">Zone ${h.zone}</div></div>`).join('');
+}
+function loadHistory(i) {
+  const history = JSON.parse(localStorage.getItem('plu_history') || '[]');
+  const h = history[i];
+  if (!h) return;
+  document.getElementById('address').value = h.address;
+  const z = document.getElementById('zone');
+  if (z) z.value = h.zone;
+  checkAll(); closeMenu();
+}
+function checkPluAge(pluName) {
+  const m = pluName?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!m) return;
+  const pluDate = new Date(m[3], m[2]-1, m[1]);
+  const diffYears = (new Date() - pluDate) / (1000 * 60 * 60 * 24 * 365);
+  const warn = document.getElementById('pluAgeWarning');
+  if (warn) warn.style.display = diffYears > 2 ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupDrop('dropM', 'fileM', 'tagM');
+  renderHistory();
+});
+
+// ── AUDIT PLU VOLUMINEUX ──
+function toggleAudit() {
+  const s = document.getElementById('auditSection');
+  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+}
+
+async function runAudit() {
+  const btn = document.getElementById('auditBtn');
+  const status = document.getElementById('auditStatus');
+  const table = document.getElementById('auditTable');
+  const csvBtn = document.getElementById('auditCsvBtn');
+  btn.disabled = true; btn.textContent = 'En cours…';
+  status.textContent = 'Interrogation de l\'API GPU — environ 30 secondes…';
+  table.innerHTML = ''; csvBtn.style.display = 'none';
+  try {
+    const r = await fetch('/api/audit', { method: 'GET' });
+    const d = await r.json();
+    btn.disabled = false; btn.textContent = 'Relancer l\'audit';
+    if (!d.results?.length) { status.textContent = 'Aucun résultat.'; return; }
+    status.textContent = `${d.total} PLUi testés · limite actuelle : ${d.limite_mb} Mo · ${d.date_test?.slice(0,19).replace('T',' ')}`;
+    const COLORS = { OK_ANALYSABLE: '#16a34a', PDF_TROP_VOLUMINEUX: '#dc2626', TAILLE_INCONNUE: '#d97706', ERREUR_TELECHARGEMENT: '#7c3aed', ERREUR_API: '#94a3b8', ERREUR_PARSE: '#ea580c' };
+    const rows = d.results.map(r => {
+      const c = COLORS[r.statut] || '#64748b';
+      const taille = r.taille_mb !== null ? r.taille_mb + ' Mo' : '—';
+      return `<tr>
+        <td style="font-weight:500;white-space:nowrap">${escHtml(r.commune)}</td>
+        <td style="color:#64748b;font-size:11px">${escHtml(r.code_insee)}</td>
+        <td style="text-align:right">${escHtml(taille)}</td>
+        <td><span style="background:${c}22;color:${c};padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">${escHtml(r.statut)}</span></td>
+        <td style="font-size:11px;color:#64748b;max-width:220px">${escHtml(r.raison)}</td>
+      </tr>`;
+    }).join('');
+    table.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:1px solid var(--bdr);color:var(--ink3)">
+        <th style="text-align:left;padding:4px 6px">Territoire</th>
+        <th style="text-align:left;padding:4px 6px">Code</th>
+        <th style="text-align:right;padding:4px 6px">Taille</th>
+        <th style="text-align:left;padding:4px 6px">Statut</th>
+        <th style="text-align:left;padding:4px 6px">Détail</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    if (d.csv) {
+      const blob = new Blob([d.csv], { type: 'text/csv;charset=utf-8' });
+      csvBtn.href = URL.createObjectURL(blob);
+      csvBtn.style.display = 'inline';
+    }
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Relancer l\'audit';
+    status.textContent = 'Erreur : ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
